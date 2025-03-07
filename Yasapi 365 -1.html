@@ -1,0 +1,1314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>YasaGeo Online App + Maintenance &amp; Shift Reports</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <!-- Orbitron font & FontAwesome -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap"
+    rel="stylesheet"
+  >
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+    crossorigin="anonymous"
+  >
+  <!-- SheetJS (Excel) + Chart.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.4/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    /* ---------------------------------------
+       GLOBAL STYLES
+    --------------------------------------- */
+    body, html {
+      margin: 0; 
+      padding: 0; 
+      height: 100%;
+      font-family: 'Orbitron', sans-serif;
+      background-color: #0d0f14;
+      color: #00ffff;
+      overflow-x: hidden;
+    }
+    #videoBackground {
+      position: fixed;
+      top: 50%; left: 50%;
+      min-width: 100%; min-height: 100%;
+      width: auto; height: auto;
+      transform: translate(-50%, -50%);
+      z-index: -1;
+      object-fit: cover;
+      object-position: center;
+    }
+    #mainContent {
+      padding: 0 10px;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 20px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+    }
+    header .transparent-logo {
+      position: absolute;
+      top: 10px; 
+      left: 10px;
+      width: 50px; 
+      height: auto;
+    }
+    h1 {
+      font-size: 3em;
+      color: #00f7ff;
+      margin: 0;
+      text-shadow: 0 0 10px #00f7ff, 0 0 20px rgba(0,247,255,0.5);
+    }
+    /* ---------------------------------------
+       TABS
+    --------------------------------------- */
+    .tab {
+      overflow: hidden;
+      background-color: rgba(0,0,0,0.8);
+      margin-bottom: 20px;
+      border-radius: 10px;
+      display: flex;
+    }
+    .tab button {
+      background-color: inherit;
+      color: white;
+      flex: 1;
+      border: none;
+      outline: none;
+      cursor: pointer;
+      padding: 14px 0;
+      font-size: 16px;
+      transition: 0.3s;
+      text-align: center;
+    }
+    .tab button:hover {
+      background-color: #005f5e;
+    }
+    .tab button.active {
+      background-color: #005f5e;
+    }
+    .tabcontent {
+      display: none;
+      padding: 20px;
+      border-radius: 15px;
+      background-color: rgba(0,0,0,0.7);
+      backdrop-filter: blur(5px);
+      box-shadow:
+        0 0 30px 15px rgba(0,255,255,0.2),
+        inset 0 0 20px rgba(0,255,255,0.1);
+      border: 1px solid rgba(0,255,255,0.2);
+    }
+    .active-content { display: block; }
+    /* ---------------------------------------
+       MACHINES / TOOLS
+    --------------------------------------- */
+    .tool-widgets-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px,1fr));
+      gap: 20px;
+      justify-items: center;
+      padding: 10px;
+      margin: 0 auto;
+    }
+    .tool-widget {
+      position: relative;
+      width: 100%;
+      max-width: 180px;
+      background-color: rgba(0,0,0,0.5);
+      color: #00ffea;
+      border-radius: 15px;
+      padding: 15px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      font-size:14px;
+      line-height:1.4;
+      border: 1px solid rgba(0,255,255,0.2);
+      box-shadow: 
+        0 0 10px 3px rgba(0,255,255,0.2),
+        inset 0 0 5px rgba(0,255,255,0.1);
+      transition: background-color 0.3s, box-shadow 0.3s;
+      cursor:pointer;
+    }
+    .tool-widget:hover {
+      background-color: #005f5e;
+      box-shadow: 
+        0 0 15px 4px rgba(0,255,255,0.4),
+        inset 0 0 10px rgba(0,255,255,0.2);
+    }
+    .tool-widget.critical {
+      box-shadow: 
+        0 0 10px 3px rgba(255,0,0,0.4),
+        inset 0 0 5px rgba(255,0,0,0.2);
+      border:1px solid rgba(255,0,0,0.4);
+      background-color: rgba(255,0,0,0.2);
+      color: #ffcccc;
+    }
+    .tool-widget.warning {
+      box-shadow:
+        0 0 10px 3px rgba(255,255,0,0.4),
+        inset 0 0 5px rgba(255,255,0,0.2);
+      border:1px solid rgba(255,255,0,0.4);
+      background-color: rgba(255,255,0,0.2);
+      color: #ffffcc;
+    }
+    .tool-icon img {
+      width:100%; 
+      height:auto; 
+      border-radius:10px; 
+      object-fit:cover; 
+      margin-bottom:10px;
+    }
+    /* ---------------------------------------
+       TOOLS LIST (Tools Tab)
+    --------------------------------------- */
+    .tool-list-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      cursor:pointer;
+    }
+    /* ---------------------------------------
+       POPUP
+    --------------------------------------- */
+    .popup {
+      display: none;
+      position: fixed;
+      top:50%; left:50%;
+      transform: translate(-50%,-50%);
+      width: 90%;
+      max-width: 500px;
+      padding:20px;
+      background-color: rgba(0,0,0,0.9);
+      color:#00ffea;
+      border-radius:10px;
+      max-height:80vh;
+      overflow-y:auto;
+      box-sizing:border-box;
+      z-index:1000;
+    }
+    .popup.active { display:block; }
+    .popup-header {
+      font-size:1.8em;
+      margin-bottom:20px;
+      text-align:center;
+    }
+    .popup-content p { margin:10px 0; }
+    .popup-close {
+      background-color:#00ffea;
+      color:#1d1f20;
+      border:none;
+      padding:10px 20px;
+      cursor:pointer;
+      border-radius:5px;
+      font-size:1em;
+      transition:background-color 0.3s;
+      display:block;
+      margin:20px auto 0;
+    }
+    .popup-close:hover {
+      background-color:#00e5e5;
+    }
+    /* ---------------------------------------
+       HISTORY
+    --------------------------------------- */
+    .history-container {
+      max-height:400px;
+      overflow-y:auto;
+    }
+    .history-entry {
+      background-color: rgba(0,0,0,0.6);
+      padding:10px;
+      margin-bottom:10px;
+      border-radius:10px;
+      box-shadow: 0 0 10px rgba(0,255,255,0.1);
+    }
+    .history-entry p {
+      margin:5px 0;
+      word-wrap:break-word;
+    }
+    .history-entry .timestamp {
+      font-size:0.8em;
+      color:#00ffff;
+      text-align:right;
+    }
+    /* ---------------------------------------
+       MAINTENANCE & SHIFT REPORTS
+    --------------------------------------- */
+    .record-box {
+      border:1px solid #0ff;
+      padding:10px;
+      margin-bottom:20px;
+      border-radius:8px;
+    }
+    /* ---------------------------------------
+       ABOUT US MODAL
+    --------------------------------------- */
+    .modal {
+      display:none;
+      position:fixed;
+      z-index:1002;
+      left:0; top:0;
+      width:100%; height:100%;
+      background-color: rgba(0,0,0,0.7);
+    }
+    .modal-content {
+      background-color: rgba(0,0,0,0.9);
+      margin:10% auto;
+      padding:20px;
+      border:1px solid #888;
+      width:80%;
+      max-width:600px;
+      border-radius:10px;
+      color:#00ffea;
+      position:relative;
+      box-shadow: 0 0 30px rgba(0,255,255,0.3);
+    }
+    .modal-content h2 {
+      margin-top:0; text-align:center;
+      text-shadow: 0 0 10px #00ffea, 0 0 20px rgba(0,255,234,0.5);
+    }
+    .modal-content p { line-height:1.6; }
+    .modal-content .close {
+      color:#00ffea;
+      position:absolute;
+      top:10px; right:25px;
+      font-size:2em; 
+      font-weight:bold;
+      cursor:pointer;
+    }
+    .modal-content .close:hover { color:#ff4c4c; }
+    /* ---------------------------------------
+       BOTTOM BUTTONS
+    --------------------------------------- */
+    .button-wrapper {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin:20px 0;
+      gap:15px;
+    }
+    .button-container button {
+      background: linear-gradient(90deg, #e0ff00, #00ff7f);
+      color:#333;
+      border:none;
+      padding:12px 25px;
+      border-radius:25px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+      cursor:pointer;
+      font-size:16px;
+      font-weight:bold;
+      transition: transform 0.2s, box-shadow 0.2s, background 0.3s;
+      display:flex; align-items:center; gap:8px;
+    }
+    .button-container button:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+      background: linear-gradient(90deg, #00ff7f, #e0ff00);
+    }
+    .button-container button:active {
+      transform: translateY(1px);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    }
+    /* ---------------------------------------
+       CHAT
+    --------------------------------------- */
+    #chatContainer {
+      position:fixed;
+      bottom:20px; right:20px;
+      width:300px; 
+      max-height:400px;
+      background-color: rgba(0,0,0,0.9);
+      color:#00ffff;
+      border-radius:10px;
+      padding:10px;
+      overflow-y:auto;
+      display:none;
+      z-index:1001;
+    }
+    #chatContainer.active { display:block; }
+    #chatMessages {
+      max-height:300px;
+      overflow-y:auto;
+      margin-bottom:10px;
+    }
+    .chat-message { margin-bottom:5px; }
+    #chatInput {
+      width:calc(100% - 70px);
+      padding:10px;
+      border:none;
+      border-radius:5px;
+      outline:none;
+      background-color:#1d1f20;
+      color:#00ffff;
+    }
+    #sendChatButton {
+      padding:10px;
+      border:none;
+      border-radius:5px;
+      background-color:#00ffea;
+      cursor:pointer;
+      transition:background-color 0.3s;
+      margin-left:5px;
+    }
+    #sendChatButton:hover { background-color:#00e5e5; }
+    .clear-chat {
+      margin-top:10px;
+      background-color:#ff4c4c;
+      width:100%;
+      padding:10px;
+      border:none;
+      border-radius:5px;
+      color:#1d1f20;
+      cursor:pointer;
+      font-weight:bold;
+      transition:background-color 0.3s;
+    }
+    .clear-chat:hover {
+      background-color: #ff1a1a;
+    }
+    /* Responsive */
+    @media(max-width:768px){
+      .tool-widgets-container {
+        grid-template-columns: repeat(auto-fit, minmax(150px,1fr));
+      }
+      .button-container button {
+        padding: 10px 20px;
+        font-size:14px;
+      }
+      #chatContainer {
+        width:90%;
+        right:5%;
+      }
+    }
+    @media(max-width:480px){
+      .tool-widgets-container {
+        grid-template-columns: repeat(2,1fr);
+      }
+      .tool-widget { max-width:100%; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Background Video -->
+  <video autoplay muted loop playsinline id="videoBackground">
+    <source
+      src="https://storage.googleapis.com/yasatmapi/2792370-hd_1920_1080_30fps.mp4"
+      type="video/mp4"
+    >
+    Your browser does not support the video tag.
+  </video>
+
+  <!-- MAIN CONTENT -->
+  <div id="mainContent">
+    <header>
+      <img
+        src="https://storage.googleapis.com/jsonyasa/2Yasalogh.gif"
+        alt="Logo"
+        class="transparent-logo"
+      >
+      <h1>YasaGeo Online App + Maintenance &amp; Shift Reports</h1>
+    </header>
+
+    <!-- TAB NAVIGATION -->
+    <nav class="tab">
+      <button class="tablinks active" onclick="openTab(event, 'machinesTab')">
+        Machines Overview
+      </button>
+      <button class="tablinks" onclick="openTab(event, 'toolsTab')">
+        Tools Settings
+      </button>
+      <button class="tablinks" onclick="openTab(event, 'toolHoldersTab')">
+        Tool Holders
+      </button>
+      <button class="tablinks" onclick="openTab(event, 'historyTab')">
+        History
+      </button>
+      <!-- NEW TAB for Maintenance & Shift Reports -->
+      <button class="tablinks" onclick="openTab(event, 'maintenanceTab')">
+        Maintenance &amp; Reports
+      </button>
+    </nav>
+
+    <!-- TABBED CONTENT -->
+    <main class="container">
+      <!-- Machines Overview -->
+      <section id="machinesTab" class="tabcontent active-content">
+        <h2>Machines Overview</h2>
+        <div id="toolWidgets" class="tool-widgets-container"></div>
+        <canvas id="toolChart" width="400" height="200"></canvas>
+      </section>
+
+      <!-- Tools Settings -->
+      <section id="toolsTab" class="tabcontent">
+        <h2>Tools Settings</h2>
+        <div style="margin-bottom:15px;">
+          <input
+            type="text"
+            id="toolSearchInput"
+            placeholder="Search tools..."
+            oninput="searchTools()"
+            style="width:60%;padding:5px;border-radius:5px;border:none;"
+          >
+          <select
+            id="sortOptions"
+            onchange="sortTools()"
+            style="width:35%;padding:5px;border-radius:5px;border:none;"
+          >
+            <option value="">Sort By</option>
+            <option value="Tool Number">Tool Number</option>
+            <option value="Total Quantity">Total Quantity</option>
+          </select>
+        </div>
+        <div id="toolList"></div>
+
+        <!-- Import/Export Tools Excel -->
+        <div style="margin-top:20px;">
+          <h3>Import Tool Library (Excel)</h3>
+          <input type="file" id="toolLibraryFile" accept=".xlsx">
+          <button type="button" onclick="importToolLibrary()">Import</button>
+          <button onclick="exportToExcel()">Export to Excel</button>
+        </div>
+      </section>
+
+      <!-- Tool Holders Tab -->
+      <section id="toolHoldersTab" class="tabcontent">
+        <h2>Tool Holders</h2>
+        <div id="toolHolderWidgetsContainer" class="tool-widgets-container"></div>
+        <button onclick="addToolHolder()">Add Tool Holder</button>
+      </section>
+
+      <!-- History Tab -->
+      <section id="historyTab" class="tabcontent">
+        <h2>Change History</h2>
+        <div class="history-container"><!-- appended dynamically --></div>
+      </section>
+
+      <!-- NEW: Maintenance & Shift Reports Tab -->
+      <section id="maintenanceTab" class="tabcontent">
+        <h2>Maintenance &amp; Shift Reports</h2>
+        <!-- Tool Broken/Changed -->
+        <div class="record-box">
+          <h3>Tool Broken / Changed</h3>
+          <button onclick="recordToolBreak()">Record Tool Break</button>
+          <div id="brokenToolsList" style="margin-top:10px;"></div>
+        </div>
+        <!-- Coolant Refill -->
+        <div class="record-box">
+          <h3>Coolant Refill</h3>
+          <button onclick="recordCoolantRefill()">Record Coolant Refill</button>
+          <div id="coolantList" style="margin-top:10px;"></div>
+        </div>
+        <!-- Shift Reports -->
+        <div class="record-box">
+          <h3>Shift Reports</h3>
+          <button onclick="createShiftReport()">Create Shift Report</button>
+          <div id="shiftReportsList" style="margin-top:10px;"></div>
+        </div>
+      </section>
+    </main>
+
+    <!-- TOOL POPUP -->
+    <div id="toolPopup" class="popup">
+      <div class="popup-header" id="toolPopupHeader"></div>
+      <div class="popup-content" id="toolPopupContent"></div>
+      <button class="popup-close" onclick="closePopup()">Close</button>
+    </div>
+
+    <!-- ABOUT US MODAL -->
+    <div id="aboutUsModal" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="closeAboutUs()">&times;</span>
+        <h2>About Us</h2>
+        <p><strong>Main Development:</strong> Lavrenti Tkhlashidze</p>
+        <p><strong>Image Upload Concept:</strong> Tornike Khutsishvili</p>
+        <p>This online app was built to manage tools, holders, maintenance logs, and shift reports entirely in your browser!</p>
+      </div>
+    </div>
+
+    <!-- BOTTOM BUTTONS -->
+    <div class="button-wrapper">
+      <div class="button-container">
+        <button onclick="exportToolData()">
+          <i class="fas fa-file-export"></i> Export All Tool Data
+        </button>
+        <button onclick="createTool()">
+          <i class="fas fa-plus-circle"></i> Create Tool
+        </button>
+        <button onclick="exportToolConditionsToExcel()">
+          <i class="fas fa-file-excel"></i> Export Tool Conditions
+        </button>
+        <button onclick="toggleChat()">
+          <i class="fas fa-comments"></i> Chat
+        </button>
+        <button onclick="openAboutUs()">
+          <i class="fas fa-info-circle"></i> About Us
+        </button>
+      </div>
+    </div>
+
+    <!-- CHAT CONTAINER -->
+    <div id="chatContainer">
+      <h3>Chat</h3>
+      <div id="chatMessages"></div>
+      <div style="display:flex;">
+        <input
+          type="text"
+          id="chatInput"
+          placeholder="Type a message..."
+          onkeydown="if(event.key==='Enter') sendMessage()"
+        >
+        <button id="sendChatButton" onclick="sendMessage()">Send</button>
+      </div>
+      <button onclick="clearChat()" class="clear-chat">Clear Chat</button>
+    </div>
+  </div>
+
+  <script>
+    // REMOTE JSON URL (raw link from GitHub)
+    const REMOTE_JSON_URL = "https://raw.githubusercontent.com/Qourum/Api/b776827983dae84e82ad2dccee18d6224ee6514b/11111.json";
+    // REMOTE UPDATE URL – a placeholder that you must replace with your backend API endpoint
+    const REMOTE_UPDATE_URL = "https://your-backend-endpoint/update-json"; 
+
+    // GLOBAL ARRAYS
+    let tools = [];
+    let toolHolders = [];
+    let chatHistory = [];
+    let historyLog = [];
+    let maintenanceRecords = [];
+    let shiftReports = [];
+
+    /* -----------------------------------------------------------
+       LOAD DATA FROM REMOTE JSON (ONLINE ONLY)
+    ----------------------------------------------------------- */
+    async function loadRemoteData() {
+      try {
+        const response = await fetch(REMOTE_JSON_URL);
+        if (!response.ok) throw new Error("Failed to load remote JSON data");
+        const remoteData = await response.json();
+        tools = remoteData.tools || [];
+        toolHolders = remoteData.toolHolders || [];
+        chatHistory = remoteData.chatHistory || [];
+        historyLog = remoteData.historyLog || [];
+        maintenanceRecords = remoteData.maintenanceRecords || [];
+        shiftReports = remoteData.shiftReports || [];
+        refreshUI();
+        console.log("Remote data loaded successfully.");
+      } catch (error) {
+        console.error("Error loading remote data:", error);
+        alert("Failed to load remote data.");
+      }
+    }
+
+    /* -----------------------------------------------------------
+       PROMPT REMOTE UPDATE
+       This function is called after any data change.
+       In production, REMOTE_UPDATE_URL should be replaced with your backend endpoint
+       that is authorized to update the JSON file.
+    ----------------------------------------------------------- */
+    async function promptRemoteUpdate() {
+      if (confirm("Do you want to update the remote JSON file with these changes?")) {
+        await updateRemoteData();
+      }
+    }
+
+    async function updateRemoteData() {
+      try {
+        // Send a PUT request with the updated data as JSON.
+        const response = await fetch(REMOTE_UPDATE_URL, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            tools,
+            toolHolders,
+            chatHistory,
+            historyLog,
+            maintenanceRecords,
+            shiftReports
+          })
+        });
+        if (response.ok) {
+          alert("Remote JSON updated successfully.");
+        } else {
+          alert("Failed to update remote JSON.");
+        }
+      } catch (error) {
+        console.error("Error updating remote JSON:", error);
+        alert("Error updating remote JSON.");
+      }
+    }
+
+    /* -----------------------------------------------------------
+       REFRESH UI: Recreate all elements
+    ----------------------------------------------------------- */
+    function refreshUI(){
+      createToolWidgets();
+      createToolList();
+      createToolHolderWidgets();
+      createToolChart();
+      renderChatHistory();
+      renderHistory();
+    }
+
+    /* -----------------------------------------------------------
+       MACHINES TAB: Tool Widgets
+    ----------------------------------------------------------- */
+    function createToolWidgets(){
+      const c = document.getElementById("toolWidgets");
+      c.innerHTML="";
+      tools.forEach((tool,i)=>{
+        const available = calculateAvailable(tool);
+        const widget = document.createElement("div");
+        widget.classList.add("tool-widget");
+        if(available <= tool["Critical Quantity"]){
+          widget.classList.add("critical");
+        } else if(available <= tool["Critical Quantity"]+2){
+          widget.classList.add("warning");
+        }
+        widget.innerHTML = `
+          <div class="tool-icon">
+            <img src="${tool["Image"]||"https://via.placeholder.com/150"}" alt="Tool Image">
+          </div>
+          <div>
+            <strong>${tool["Tool Number"]}</strong><br>
+            Total: ${tool["Total Quantity"]||0}<br>
+            On Shelf: ${available}
+          </div>
+        `;
+        widget.addEventListener("click", ()=>openToolPopup(i));
+        c.appendChild(widget);
+      });
+    }
+    function calculateAvailable(tool){
+      let total = parseInt(tool["Total Quantity"])||0;
+      let sharpening = parseInt(tool["Sharpening"])||0;
+      let broken = parseInt(tool["Broken"])||0;
+      let hsk = parseInt(tool.Machines["Heller Siemens"]||0);
+      let ok5 = parseInt(tool.Machines["Okuma 5ax"]||0);
+      let okGenos = parseInt(tool.Machines["Okuma Genos 5ax"]||0);
+      return total - (sharpening + broken + hsk + ok5 + okGenos);
+    }
+
+    /* -----------------------------------------------------------
+       TOOLS TAB: List
+    ----------------------------------------------------------- */
+    function createToolList(filtered=tools) {
+      const c = document.getElementById("toolList");
+      c.innerHTML="";
+      filtered.forEach((tool,i)=>{
+        const available = calculateAvailable(tool);
+        const item = document.createElement("div");
+        item.classList.add("tool-list-item");
+        item.innerHTML = `
+          <div>
+            <p><strong>Tool #:</strong> ${tool["Tool Number"]}</p>
+            <p><strong>Total:</strong> ${tool["Total Quantity"]}</p>
+            <p><strong>On Shelf:</strong> ${available}</p>
+            <p><strong>Internet Resources:</strong>${
+              tool["Internet Resources"]
+              ? ` <a href="${tool["Internet Resources"]}" target="_blank">${tool["Internet Resources"]}</a>`
+              : " No Link"
+            }</p>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:5px;">
+            <button onclick="renameTool(${i})">Rename</button>
+            <button onclick="deleteTool(${i})">Delete</button>
+          </div>
+        `;
+        item.addEventListener("click",(e)=>{
+          if(e.target.tagName.toLowerCase()==="button"||e.target.tagName.toLowerCase()==="a"){
+            e.stopPropagation();
+          } else {
+            openToolPopup(i);
+          }
+        });
+        c.appendChild(item);
+      });
+    }
+    function searchTools(){
+      const q = document.getElementById("toolSearchInput").value.toLowerCase();
+      const filtered = tools.filter(t=>
+        t["Tool Number"].toLowerCase().includes(q) ||
+        t["Tool Manufacturer"].toLowerCase().includes(q)
+      );
+      createToolList(filtered);
+    }
+    function sortTools(){
+      const by = document.getElementById("sortOptions").value;
+      let sorted = [...tools];
+      if(by==="Tool Number"){
+        sorted.sort((a,b)=> a["Tool Number"].localeCompare(b["Tool Number"]));
+      } else if(by==="Total Quantity"){
+        sorted.sort((a,b)=>
+          (parseInt(b["Total Quantity"])||0)-(parseInt(a["Total Quantity"])||0)
+        );
+      }
+      createToolList(sorted);
+    }
+
+    /* -----------------------------------------------------------
+       CREATE / EDIT / DELETE Tools
+    ----------------------------------------------------------- */
+    function createTool(){
+      const tnum = prompt("Enter new Tool Number:","T-9999");
+      if(!tnum)return;
+      const newTool = {
+        "Tool Number": tnum,
+        "Tool Manufacturer": "Unknown",
+        "Total Quantity": 0,
+        "Sharpening": 0,
+        "Broken": 0,
+        "Critical Quantity": 1,
+        "Machines": {
+          "Heller Siemens":0,
+          "Okuma 5ax":0,
+          "Okuma Genos 5ax":0
+        },
+        "Type":"General",
+        "Image":"https://via.placeholder.com/150",
+        "Internet Resources":""
+      };
+      tools.push(newTool);
+      logChange("Create Tool",{toolNumber:tnum});
+      refreshUI();
+      promptRemoteUpdate();
+    }
+    function renameTool(i){
+      const oldName = tools[i]["Tool Number"];
+      const newName = prompt("New Tool Number:", oldName)||oldName;
+      tools[i]["Tool Number"] = newName;
+      logChange("Rename Tool",{ oldName, newName });
+      refreshUI();
+      promptRemoteUpdate();
+    }
+    function deleteTool(i){
+      if(!confirm("Really delete this tool?"))return;
+      const delName = tools[i]["Tool Number"];
+      tools.splice(i,1);
+      logChange("Delete Tool",{ toolNumber: delName });
+      refreshUI();
+      promptRemoteUpdate();
+    }
+
+    /* -----------------------------------------------------------
+       TOOL POPUP (Detailed Editing)
+    ----------------------------------------------------------- */
+    function openToolPopup(i){
+      const tool = tools[i];
+      const header = document.getElementById("toolPopupHeader");
+      const content = document.getElementById("toolPopupContent");
+      header.textContent = `Tool: ${tool["Tool Number"]}`;
+      content.innerHTML=`
+        <p>
+          <strong>Manufacturer:</strong>
+          <input type="text" value="${tool["Tool Manufacturer"]}"
+                 onchange="updateTool(${i}, 'Tool Manufacturer', this.value)">
+        </p>
+        <p>
+          <strong>Total Quantity:</strong>
+          <input type="number" value="${tool["Total Quantity"]||0}"
+                 onchange="updateTool(${i}, 'Total Quantity', this.value)">
+        </p>
+        <p>
+          <strong>Sharpening:</strong>
+          <input type="number" value="${tool["Sharpening"]||0}"
+                 onchange="updateTool(${i}, 'Sharpening', this.value)">
+        </p>
+        <p>
+          <strong>Broken:</strong>
+          <input type="number" value="${tool["Broken"]||0}"
+                 onchange="updateTool(${i}, 'Broken', this.value)">
+        </p>
+        <p>
+          <strong>Critical Quantity:</strong>
+          <input type="number" value="${tool["Critical Quantity"]||1}"
+                 onchange="updateTool(${i}, 'Critical Quantity', this.value)">
+        </p>
+        <p>
+          <strong>Internet Resources:</strong>
+          <input type="text" value="${tool["Internet Resources"]||""}"
+                 onchange="updateTool(${i}, 'Internet Resources', this.value)">
+        </p>
+        <h4>Machine-Specific Quantities</h4>
+        <p>
+          <strong>Heller Siemens:</strong>
+          <input type="number" value="${tool.Machines["Heller Siemens"]||0}"
+                 onchange="updateMachineQty(${i}, 'Heller Siemens', this.value)">
+        </p>
+        <p>
+          <strong>Okuma 5ax:</strong>
+          <input type="number" value="${tool.Machines["Okuma 5ax"]||0}"
+                 onchange="updateMachineQty(${i}, 'Okuma 5ax', this.value)">
+        </p>
+        <p>
+          <strong>Okuma Genos 5ax:</strong>
+          <input type="number" value="${tool.Machines["Okuma Genos 5ax"]||0}"
+                 onchange="updateMachineQty(${i}, 'Okuma Genos 5ax', this.value)">
+        </p>
+        <p><strong>Image URL:</strong></p>
+        <input type="text" value="${tool["Image"]||""}"
+               onchange="updateTool(${i}, 'Image', this.value)">
+        <br>
+        ${
+          tool["Image"]
+          ? `<img src="${tool["Image"]}" alt="Tool Image" style="max-width:100%;margin-top:10px;">`
+          : "<p>No Image Provided</p>"
+        }
+        <button style="margin-top:10px;" onclick="saveChanges(${i})">Save</button>
+      `;
+      document.getElementById("toolPopup").classList.add("active");
+    }
+    function closePopup(){
+      document.getElementById("toolPopup").classList.remove("active");
+    }
+    function updateTool(i, property, val){
+      const oldVal = tools[i][property];
+      tools[i][property] = val;
+      logChange("Update Tool", {
+        toolNumber: tools[i]["Tool Number"],
+        property,
+        oldValue: oldVal,
+        newValue: val
+      });
+      promptRemoteUpdate();
+    }
+    function updateMachineQty(i, machine, val){
+      const oldVal = tools[i].Machines[machine];
+      tools[i].Machines[machine] = parseInt(val)||0;
+      logChange("Update Machine Qty", {
+        toolNumber: tools[i]["Tool Number"],
+        machine,
+        oldValue: oldVal,
+        newValue: val
+      });
+      promptRemoteUpdate();
+    }
+    function saveChanges(i){
+      refreshUI();
+      closePopup();
+      promptRemoteUpdate();
+    }
+
+    /* -----------------------------------------------------------
+       TOOL HOLDERS
+    ----------------------------------------------------------- */
+    function createToolHolderWidgets(){
+      const c = document.getElementById("toolHolderWidgetsContainer");
+      c.innerHTML="";
+      if(toolHolders.length===0){
+        c.innerHTML = "<p>No tool holders available.</p>";
+        return;
+      }
+      toolHolders.forEach((holder, index)=>{
+        const w = document.createElement("div");
+        w.classList.add("tool-widget");
+        w.innerHTML=`
+          <div style="margin-bottom:10px;">
+            ${
+              holder.image
+              ? `<img src="${holder.image}" alt="Holder" style="width:100%;border-radius:10px;">`
+              : "<p>No Image</p>"
+            }
+          </div>
+          <div>
+            <strong>Name:</strong> ${holder.name}<br>
+            <strong>Type:</strong> ${holder.type}<br>
+            <strong>Manufacturer:</strong> ${holder.manufacturer}
+          </div>
+          <div style="display:flex;gap:5px;margin-top:10px;justify-content:center;">
+            <button onclick="editToolHolder(${index})">Edit</button>
+            <button onclick="deleteToolHolder(${index})">Delete</button>
+          </div>
+        `;
+        c.appendChild(w);
+      });
+    }
+    function addToolHolder(){
+      const name = prompt("Holder Name?","NewHolder")||"Unnamed";
+      const type = prompt("Holder Type?","HSK")||"NoType";
+      const man  = prompt("Manufacturer?","NoBrand")||"NoBrand";
+      const img  = prompt("Image URL?","")||"";
+      const newHolder = { name, type, manufacturer: man, image: img };
+      toolHolders.push(newHolder);
+      logChange("Add Tool Holder", newHolder);
+      refreshUI();
+      promptRemoteUpdate();
+    }
+    function editToolHolder(index){
+      const h = toolHolders[index];
+      const newName = prompt("Name:", h.name)||h.name;
+      const newType = prompt("Type:", h.type)||h.type;
+      const newMan  = prompt("Manufacturer:", h.manufacturer)||h.manufacturer;
+      const newImg  = prompt("Image URL:", h.image)||h.image;
+      logChange("Edit Tool Holder",{
+        oldName: h.name, newName,
+        oldType: h.type, newType,
+        oldManufacturer: h.manufacturer, newManufacturer: newMan,
+        oldImage: h.image, newImage: newImg
+      });
+      toolHolders[index] = { name:newName, type:newType, manufacturer:newMan, image:newImg };
+      refreshUI();
+      promptRemoteUpdate();
+    }
+    function deleteToolHolder(index){
+      if(!confirm("Delete this holder?"))return;
+      const holder = toolHolders[index];
+      logChange("Delete Tool Holder", holder);
+      toolHolders.splice(index,1);
+      refreshUI();
+      promptRemoteUpdate();
+    }
+
+    /* -----------------------------------------------------------
+       HISTORY
+    ----------------------------------------------------------- */
+    function logChange(action, details){
+      const entry = {
+        timestamp: new Date().toLocaleString(),
+        user: "OnlineUser",
+        action,
+        details
+      };
+      historyLog.push(entry);
+    }
+    function renderHistory(){
+      const c = document.querySelector("#historyTab .history-container");
+      c.innerHTML="";
+      if(historyLog.length===0){
+        c.innerHTML = "<p>No history available.</p>";
+        return;
+      }
+      const reversed = [...historyLog].reverse();
+      reversed.forEach(e=>{
+        const div = document.createElement("div");
+        div.classList.add("history-entry");
+        div.innerHTML=`
+          <p><strong>Action:</strong> ${e.action}</p>
+          <p><strong>User:</strong> ${e.user}</p>
+          <p><strong>Details:</strong><br>${formatDetails(e.details)}</p>
+          <p class="timestamp">${e.timestamp}</p>
+        `;
+        c.appendChild(div);
+      });
+    }
+    function formatDetails(d){
+      let s="";
+      for(const k in d){
+        s += `<strong>${k}:</strong> ${d[k]}<br>`;
+      }
+      return s;
+    }
+
+    /* -----------------------------------------------------------
+       MAINTENANCE & SHIFT REPORTS
+    ----------------------------------------------------------- */
+    function recordToolBreak(){
+      const toolNumber = prompt("Which Tool Number was broken/changed?","T-0001");
+      if(!toolNumber)return;
+      const detail = prompt("Details or replaced by?","Replaced with T-0002")||"";
+      const now = new Date().toLocaleString();
+      const record = {
+        type:"Tool Broken",
+        date: now,
+        toolNumber,
+        details: detail
+      };
+      maintenanceRecords.push(record);
+      logChange("Tool Broken",{ toolNumber, replacedWith: detail });
+      renderMaintenanceTab();
+      promptRemoteUpdate();
+    }
+    function recordCoolantRefill(){
+      const pH = prompt("Coolant pH level?","8.2");
+      if(!pH)return;
+      const quantity = prompt("Quantity in liters?","20");
+      if(!quantity)return;
+      const concentration = prompt("Concentration (1-9)?","7");
+      if(!concentration)return;
+      const now = new Date().toLocaleString();
+      const record = {
+        type:"Coolant Refill",
+        date: now,
+        pH: parseFloat(pH),
+        quantityLiters: parseInt(quantity),
+        concentration: parseInt(concentration)
+      };
+      maintenanceRecords.push(record);
+      logChange("Coolant Refill",{ pH, quantity, concentration });
+      renderMaintenanceTab();
+      promptRemoteUpdate();
+    }
+    function createShiftReport(){
+      const date = prompt("Date of shift?", new Date().toLocaleDateString());
+      if(!date)return;
+      const shift = prompt("Shift name/ID?","Morning Shift A")||"UnknownShift";
+      const operator = prompt("Operator name?","John Doe")||"Unknown";
+      const parts = prompt("How many parts produced?","100")||"0";
+      const notes = prompt("Any notes?","")||"";
+      const report = {
+        date,
+        shift,
+        operator,
+        partsProduced: parseInt(parts),
+        notes
+      };
+      shiftReports.push(report);
+      logChange("Shift Report",{ date, shift, partsProduced: parts });
+      renderMaintenanceTab();
+      promptRemoteUpdate();
+    }
+    function renderMaintenanceTab(){
+      const brokenList = document.getElementById("brokenToolsList");
+      const coolantList = document.getElementById("coolantList");
+      const shiftList = document.getElementById("shiftReportsList");
+      const brokenRecords = maintenanceRecords.filter(r=>r.type==="Tool Broken");
+      brokenList.innerHTML = brokenRecords.map(r=>`
+        <div style="margin-bottom:5px;">
+          <strong>Date:</strong> ${r.date}<br>
+          <strong>Tool #:</strong> ${r.toolNumber}<br>
+          <strong>Details:</strong> ${r.details}
+        </div>
+      `).join("");
+      const coolantRecords = maintenanceRecords.filter(r=>r.type==="Coolant Refill");
+      coolantList.innerHTML = coolantRecords.map(r=>`
+        <div style="margin-bottom:5px;">
+          <strong>Date:</strong> ${r.date}<br>
+          <strong>pH:</strong> ${r.pH} |
+          <strong>Liters:</strong> ${r.quantityLiters} |
+          <strong>Concentration:</strong> ${r.concentration} (1-9)
+        </div>
+      `).join("");
+      shiftList.innerHTML = shiftReports.map(sr=>`
+        <div style="margin-bottom:10px;">
+          <strong>${sr.date} — ${sr.shift}</strong><br>
+          Operator: ${sr.operator}<br>
+          Parts Produced: ${sr.partsProduced}<br>
+          Notes: ${sr.notes}
+        </div>
+      `).join("");
+    }
+
+    /* -----------------------------------------------------------
+       IMPORT/EXPORT EXCEL for Tools
+    ----------------------------------------------------------- */
+    function importToolLibrary(){
+      const fileInput = document.getElementById("toolLibraryFile");
+      const file = fileInput.files[0];
+      if(!file){
+        alert("Please select an Excel file.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = function(e){
+        const data = e.target.result;
+        const wb = XLSX.read(data,{type:"binary"});
+        const wsName = wb.SheetNames[0];
+        const ws = wb.Sheets[wsName];
+        const imported = XLSX.utils.sheet_to_json(ws);
+        imported.forEach(t=>{
+          tools.push({
+            "Tool Number": t["Tool Number"]||"N/A",
+            "Tool Manufacturer": t["Tool Manufacturer"]||"Unknown",
+            "Total Quantity": parseInt(t["Total Quantity"])||0,
+            "Sharpening": parseInt(t["Sharpening"])||0,
+            "Broken": parseInt(t["Broken"])||0,
+            "Critical Quantity": parseInt(t["Critical Quantity"])||1,
+            "Machines": {
+              "Heller Siemens": parseInt(t["Heller Siemens"])||0,
+              "Okuma 5ax": parseInt(t["Okuma 5ax"])||0,
+              "Okuma Genos 5ax": parseInt(t["Okuma Genos 5ax"])||0
+            },
+            "Type": t["Type"]||"General",
+            "Image": t["Image"]||"https://via.placeholder.com/150",
+            "Internet Resources": t["Internet Resources"]||""
+          });
+          logChange("Import Tool",{toolNumber: t["Tool Number"]});
+        });
+        refreshUI();
+        alert("Tool library imported from Excel!");
+        promptRemoteUpdate();
+      };
+      reader.readAsBinaryString(file);
+    }
+    function exportToExcel(){
+      exportToolConditionsToExcel();
+    }
+    function exportToolConditionsToExcel(){
+      const exportData = tools.map(tool=>({
+        "Tool Number": tool["Tool Number"],
+        "Tool Manufacturer": tool["Tool Manufacturer"],
+        "Total Quantity": tool["Total Quantity"],
+        "Sharpening": tool["Sharpening"],
+        "Broken": tool["Broken"],
+        "Critical Quantity": tool["Critical Quantity"],
+        "Machines Used": JSON.stringify(tool.Machines),
+        "Available on Shelf": calculateAvailable(tool),
+        "Internet Resources": tool["Internet Resources"]||"N/A",
+        "Image": tool["Image"] ? "Yes" : "No"
+      }));
+      const sheet = XLSX.utils.json_to_sheet(exportData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, sheet, "Tool Conditions");
+      XLSX.writeFile(wb, "tool_conditions.xlsx");
+    }
+    function exportToolData(){
+      const dataObj = {
+        tools,
+        toolHolders,
+        chatHistory,
+        historyLog,
+        maintenanceRecords,
+        shiftReports
+      };
+      const blob = new Blob([JSON.stringify(dataObj,null,2)], {type:"application/json"});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "all_tool_data.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    /* -----------------------------------------------------------
+       CHART (Machines Tab)
+    ----------------------------------------------------------- */
+    function createToolChart(){
+      if(typeof Chart==="undefined"){
+        console.error("Chart.js not loaded.");
+        return;
+      }
+      const ctx = document.getElementById("toolChart").getContext("2d");
+      if(window.toolChartInstance){
+        window.toolChartInstance.destroy();
+      }
+      const labels = tools.map(t=>t["Tool Number"]);
+      const availableData = tools.map(t=>calculateAvailable(t));
+      const totalData = tools.map(t=>(parseInt(t["Total Quantity"])||0));
+      window.toolChartInstance = new Chart(ctx, {
+        type:"bar",
+        data:{
+          labels,
+          datasets:[
+            {
+              label:"Available",
+              data: availableData,
+              backgroundColor:"rgba(0,255,234,0.6)"
+            },
+            {
+              label:"Total",
+              data: totalData,
+              backgroundColor:"rgba(0,123,255,0.6)"
+            }
+          ]
+        },
+        options:{
+          responsive:true,
+          scales:{
+            x:{beginAtZero:true},
+            y:{beginAtZero:true}
+          }
+        }
+      });
+    }
+
+    /* -----------------------------------------------------------
+       CHAT
+    ----------------------------------------------------------- */
+    function toggleChat(){
+      const el = document.getElementById("chatContainer");
+      el.classList.toggle("active");
+      renderChatHistory();
+    }
+    function sendMessage(){
+      const input = document.getElementById("chatInput");
+      const msg = input.value.trim();
+      if(!msg)return;
+      chatHistory.push({ user:"OnlineUser", message: msg });
+      renderChatHistory();
+      input.value="";
+      promptRemoteUpdate();
+    }
+    function renderChatHistory(){
+      const box = document.getElementById("chatMessages");
+      box.innerHTML="";
+      chatHistory.forEach(c=>{
+        const div = document.createElement("div");
+        div.classList.add("chat-message");
+        div.textContent=`${c.user}: ${c.message}`;
+        box.appendChild(div);
+      });
+      box.scrollTop = box.scrollHeight;
+    }
+    function clearChat(){
+      if(!confirm("Clear chat history?"))return;
+      chatHistory=[];
+      logChange("Clear Chat",{info:"Chat cleared."});
+      renderChatHistory();
+      promptRemoteUpdate();
+    }
+
+    /* -----------------------------------------------------------
+       ABOUT US MODAL
+    ----------------------------------------------------------- */
+    function openAboutUs(){
+      document.getElementById("aboutUsModal").style.display="block";
+    }
+    function closeAboutUs(){
+      document.getElementById("aboutUsModal").style.display="none";
+    }
+    window.onclick = function(e){
+      const aboutUs = document.getElementById("aboutUsModal");
+      const popup = document.getElementById("toolPopup");
+      if(e.target===aboutUs){
+        aboutUs.style.display="none";
+      }
+      if(e.target===popup){
+        popup.classList.remove("active");
+      }
+    };
+
+    /* -----------------------------------------------------------
+       TABS
+    ----------------------------------------------------------- */
+    function openTab(evt, tabName){
+      const contents = document.getElementsByClassName("tabcontent");
+      for(let i=0; i<contents.length; i++){
+        contents[i].style.display="none";
+        contents[i].classList.remove("active-content");
+      }
+      const links = document.getElementsByClassName("tablinks");
+      for(let i=0; i<links.length; i++){
+        links[i].classList.remove("active");
+      }
+      document.getElementById(tabName).style.display="block";
+      document.getElementById(tabName).classList.add("active-content");
+      evt.currentTarget.classList.add("active");
+      if(tabName==="machinesTab"){
+        createToolChart();
+      }
+      if(tabName==="historyTab"){
+        renderHistory();
+      }
+      if(tabName==="maintenanceTab"){
+        renderMaintenanceTab();
+      }
+    }
+
+    /* -----------------------------------------------------------
+       ON PAGE LOAD: Load remote data from GitHub
+    ----------------------------------------------------------- */
+    window.addEventListener("load", ()=>{
+      loadRemoteData();
+    });
+  </script>
+</body>
+</html>
