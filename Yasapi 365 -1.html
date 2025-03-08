@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>YasaGeo Online App + Maintenance &amp; Shift Reports</title>
+  <title>YasaGeo Online App + Maintenance & Shift Reports</title>
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
   <!-- Orbitron font & FontAwesome -->
   <link
@@ -573,7 +573,9 @@
 
   <script>
     // REMOTE JSON URL (raw link from GitHub)
-    const REMOTE_JSON_URL = "https://raw.githubusercontent.com/Qourum/Api/b776827983dae84e82ad2dccee18d6224ee6514b/11111.json";
+    // Replace with your own raw GitHub link to the JSON
+    const REMOTE_JSON_URL = "https://github.com/Qourum/Api/blob/1f34fe14724e749a047498cd16f121ffb736976e/11111.json";
+
     // REMOTE UPDATE URL – a placeholder that you must replace with your backend API endpoint
     const REMOTE_UPDATE_URL = "https://your-backend-endpoint/update-json"; 
 
@@ -586,32 +588,41 @@
     let shiftReports = [];
 
     /* -----------------------------------------------------------
-       LOAD DATA FROM REMOTE JSON (ONLINE ONLY)
+       LOAD DATA FROM REMOTE JSON (ONLINE ONLY) with NO-CACHE
     ----------------------------------------------------------- */
     async function loadRemoteData() {
       try {
-        const response = await fetch(REMOTE_JSON_URL);
-        if (!response.ok) throw new Error("Failed to load remote JSON data");
+        // Add a timestamp parameter & set cache to 'no-store' to ensure fresh fetch
+        const fetchUrl = REMOTE_JSON_URL + "?v=" + Date.now();
+        console.log("[DEBUG] Fetching JSON from:", fetchUrl);
+
+        const response = await fetch(fetchUrl, { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error("Failed to load remote JSON data. Status: " + response.status);
+        }
+
         const remoteData = await response.json();
+        console.log("[DEBUG] Fetched remote JSON successfully:", remoteData);
+
         tools = remoteData.tools || [];
         toolHolders = remoteData.toolHolders || [];
         chatHistory = remoteData.chatHistory || [];
         historyLog = remoteData.historyLog || [];
         maintenanceRecords = remoteData.maintenanceRecords || [];
         shiftReports = remoteData.shiftReports || [];
+
         refreshUI();
-        console.log("Remote data loaded successfully.");
+        console.log("Remote data loaded successfully, UI refreshed.");
       } catch (error) {
         console.error("Error loading remote data:", error);
-        alert("Failed to load remote data.");
+        alert("Failed to load remote data. Check console for details.");
       }
     }
 
     /* -----------------------------------------------------------
        PROMPT REMOTE UPDATE
-       This function is called after any data change.
-       In production, REMOTE_UPDATE_URL should be replaced with your backend endpoint
-       that is authorized to update the JSON file.
+       In production, REMOTE_UPDATE_URL should be replaced with your
+       own backend endpoint that is authorized to update the JSON file.
     ----------------------------------------------------------- */
     async function promptRemoteUpdate() {
       if (confirm("Do you want to update the remote JSON file with these changes?")) {
@@ -621,7 +632,8 @@
 
     async function updateRemoteData() {
       try {
-        // Send a PUT request with the updated data as JSON.
+        // Send a PUT/POST request with the updated data as JSON.
+        // This will depend on your server’s required HTTP method & route.
         const response = await fetch(REMOTE_UPDATE_URL, {
           method: "PUT",
           headers: {
@@ -636,21 +648,22 @@
             shiftReports
           })
         });
+
         if (response.ok) {
           alert("Remote JSON updated successfully.");
         } else {
-          alert("Failed to update remote JSON.");
+          alert("Failed to update remote JSON. Server responded with status: " + response.status);
         }
       } catch (error) {
         console.error("Error updating remote JSON:", error);
-        alert("Error updating remote JSON.");
+        alert("Error updating remote JSON. Check console for details.");
       }
     }
 
     /* -----------------------------------------------------------
        REFRESH UI: Recreate all elements
     ----------------------------------------------------------- */
-    function refreshUI(){
+    function refreshUI() {
       createToolWidgets();
       createToolList();
       createToolHolderWidgets();
@@ -688,6 +701,7 @@
         c.appendChild(widget);
       });
     }
+
     function calculateAvailable(tool){
       let total = parseInt(tool["Total Quantity"])||0;
       let sharpening = parseInt(tool["Sharpening"])||0;
@@ -725,6 +739,7 @@
           </div>
         `;
         item.addEventListener("click",(e)=>{
+          // Prevent clicks on buttons/links from also triggering openToolPopup
           if(e.target.tagName.toLowerCase()==="button"||e.target.tagName.toLowerCase()==="a"){
             e.stopPropagation();
           } else {
@@ -734,6 +749,7 @@
         c.appendChild(item);
       });
     }
+
     function searchTools(){
       const q = document.getElementById("toolSearchInput").value.toLowerCase();
       const filtered = tools.filter(t=>
@@ -742,6 +758,7 @@
       );
       createToolList(filtered);
     }
+
     function sortTools(){
       const by = document.getElementById("sortOptions").value;
       let sorted = [...tools];
@@ -782,6 +799,7 @@
       refreshUI();
       promptRemoteUpdate();
     }
+
     function renameTool(i){
       const oldName = tools[i]["Tool Number"];
       const newName = prompt("New Tool Number:", oldName)||oldName;
@@ -790,6 +808,7 @@
       refreshUI();
       promptRemoteUpdate();
     }
+
     function deleteTool(i){
       if(!confirm("Really delete this tool?"))return;
       const delName = tools[i]["Tool Number"];
@@ -867,9 +886,11 @@
       `;
       document.getElementById("toolPopup").classList.add("active");
     }
+
     function closePopup(){
       document.getElementById("toolPopup").classList.remove("active");
     }
+
     function updateTool(i, property, val){
       const oldVal = tools[i][property];
       tools[i][property] = val;
@@ -879,8 +900,11 @@
         oldValue: oldVal,
         newValue: val
       });
-      promptRemoteUpdate();
+      // We only prompt for remote update in one place (on final "Save" or each time)
+      // For immediate push on each field change, you can uncomment the line below:
+      // promptRemoteUpdate();
     }
+
     function updateMachineQty(i, machine, val){
       const oldVal = tools[i].Machines[machine];
       tools[i].Machines[machine] = parseInt(val)||0;
@@ -890,8 +914,9 @@
         oldValue: oldVal,
         newValue: val
       });
-      promptRemoteUpdate();
+      // promptRemoteUpdate(); // If you want immediate remote update
     }
+
     function saveChanges(i){
       refreshUI();
       closePopup();
@@ -932,6 +957,7 @@
         c.appendChild(w);
       });
     }
+
     function addToolHolder(){
       const name = prompt("Holder Name?","NewHolder")||"Unnamed";
       const type = prompt("Holder Type?","HSK")||"NoType";
@@ -943,6 +969,7 @@
       refreshUI();
       promptRemoteUpdate();
     }
+
     function editToolHolder(index){
       const h = toolHolders[index];
       const newName = prompt("Name:", h.name)||h.name;
@@ -959,6 +986,7 @@
       refreshUI();
       promptRemoteUpdate();
     }
+
     function deleteToolHolder(index){
       if(!confirm("Delete this holder?"))return;
       const holder = toolHolders[index];
@@ -980,6 +1008,7 @@
       };
       historyLog.push(entry);
     }
+
     function renderHistory(){
       const c = document.querySelector("#historyTab .history-container");
       c.innerHTML="";
@@ -1000,6 +1029,7 @@
         c.appendChild(div);
       });
     }
+
     function formatDetails(d){
       let s="";
       for(const k in d){
@@ -1027,6 +1057,7 @@
       renderMaintenanceTab();
       promptRemoteUpdate();
     }
+
     function recordCoolantRefill(){
       const pH = prompt("Coolant pH level?","8.2");
       if(!pH)return;
@@ -1047,6 +1078,7 @@
       renderMaintenanceTab();
       promptRemoteUpdate();
     }
+
     function createShiftReport(){
       const date = prompt("Date of shift?", new Date().toLocaleDateString());
       if(!date)return;
@@ -1066,10 +1098,12 @@
       renderMaintenanceTab();
       promptRemoteUpdate();
     }
+
     function renderMaintenanceTab(){
       const brokenList = document.getElementById("brokenToolsList");
       const coolantList = document.getElementById("coolantList");
       const shiftList = document.getElementById("shiftReportsList");
+
       const brokenRecords = maintenanceRecords.filter(r=>r.type==="Tool Broken");
       brokenList.innerHTML = brokenRecords.map(r=>`
         <div style="margin-bottom:5px;">
@@ -1078,6 +1112,7 @@
           <strong>Details:</strong> ${r.details}
         </div>
       `).join("");
+
       const coolantRecords = maintenanceRecords.filter(r=>r.type==="Coolant Refill");
       coolantList.innerHTML = coolantRecords.map(r=>`
         <div style="margin-bottom:5px;">
@@ -1087,6 +1122,7 @@
           <strong>Concentration:</strong> ${r.concentration} (1-9)
         </div>
       `).join("");
+
       shiftList.innerHTML = shiftReports.map(sr=>`
         <div style="margin-bottom:10px;">
           <strong>${sr.date} — ${sr.shift}</strong><br>
@@ -1114,6 +1150,7 @@
         const wsName = wb.SheetNames[0];
         const ws = wb.Sheets[wsName];
         const imported = XLSX.utils.sheet_to_json(ws);
+
         imported.forEach(t=>{
           tools.push({
             "Tool Number": t["Tool Number"]||"N/A",
@@ -1133,15 +1170,18 @@
           });
           logChange("Import Tool",{toolNumber: t["Tool Number"]});
         });
+
         refreshUI();
         alert("Tool library imported from Excel!");
         promptRemoteUpdate();
       };
       reader.readAsBinaryString(file);
     }
+
     function exportToExcel(){
       exportToolConditionsToExcel();
     }
+
     function exportToolConditionsToExcel(){
       const exportData = tools.map(tool=>({
         "Tool Number": tool["Tool Number"],
@@ -1155,11 +1195,13 @@
         "Internet Resources": tool["Internet Resources"]||"N/A",
         "Image": tool["Image"] ? "Yes" : "No"
       }));
+
       const sheet = XLSX.utils.json_to_sheet(exportData);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, sheet, "Tool Conditions");
       XLSX.writeFile(wb, "tool_conditions.xlsx");
     }
+
     function exportToolData(){
       const dataObj = {
         tools,
@@ -1228,6 +1270,7 @@
       el.classList.toggle("active");
       renderChatHistory();
     }
+
     function sendMessage(){
       const input = document.getElementById("chatInput");
       const msg = input.value.trim();
@@ -1237,6 +1280,7 @@
       input.value="";
       promptRemoteUpdate();
     }
+
     function renderChatHistory(){
       const box = document.getElementById("chatMessages");
       box.innerHTML="";
@@ -1248,6 +1292,7 @@
       });
       box.scrollTop = box.scrollHeight;
     }
+
     function clearChat(){
       if(!confirm("Clear chat history?"))return;
       chatHistory=[];
@@ -1262,9 +1307,11 @@
     function openAboutUs(){
       document.getElementById("aboutUsModal").style.display="block";
     }
+
     function closeAboutUs(){
       document.getElementById("aboutUsModal").style.display="none";
     }
+
     window.onclick = function(e){
       const aboutUs = document.getElementById("aboutUsModal");
       const popup = document.getElementById("toolPopup");
@@ -1292,6 +1339,8 @@
       document.getElementById(tabName).style.display="block";
       document.getElementById(tabName).classList.add("active-content");
       evt.currentTarget.classList.add("active");
+
+      // Re-draw chart or re-render logs if needed
       if(tabName==="machinesTab"){
         createToolChart();
       }
@@ -1304,7 +1353,7 @@
     }
 
     /* -----------------------------------------------------------
-       ON PAGE LOAD: Load remote data from GitHub
+       ON PAGE LOAD: Load remote data from GitHub (no-cache)
     ----------------------------------------------------------- */
     window.addEventListener("load", ()=>{
       loadRemoteData();
